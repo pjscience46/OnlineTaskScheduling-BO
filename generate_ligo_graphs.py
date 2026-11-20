@@ -1,32 +1,30 @@
-r"""Generate Pegasus LIGO DAGs beside this Python file.
+"""Generate Pegasus LIGO graph files for ALL graph sizes, beside this Python file.
 
-No task CSV generation. Uses the compiled Pegasus WorkflowGenerator
-(`bharathi` Java AppGenerator) to generate real LIGO-inspired DAX instances.
+Default (no flags): 100 LIGO graphs per size, n=100,200,...,1000
+=> 1,000 workflows across 10 size folders.
 
-Default output (no matter which directory PowerShell is opened in):
-  <folder_containing_this_script>\LIGO\
-    GRAPHS\n=100\Ligo_output_1.csv
-    GRAPHS\n=100\Ligo_output_2.csv
-    ... and EMPTY n=200 ... n=1000 folders
-    Tasks\n=100\                   (empty; no task parameter files)
-    ORIGINAL\n=100\Ligo_output_1.dax
-    ORIGINAL\n=100\Ligo_output_2.dax
+Files are saved alongside this script:
+    LIGO/ORIGINAL/n=100/Ligo_output_1.dax ... Ligo_output_100.dax
+    LIGO/GRAPHS/n=100/Ligo_output_1.csv ... Ligo_output_100.csv
+    ... repeated for n=200 through n=1000
+    LIGO/Tasks/n=...   (empty placeholders; NO task files are generated)
 
-The .csv graphs deliberately contain DOT-style edge lines because your
-existing DAGGEN dependency reader expects them.
+The .csv files contain DAGGEN-compatible DOT-style lines because your
+existing dependency reader expects those, not standard comma-separated edges.
 
-The precompiled Pegasus generator can REMAIN in:
+Source: Pegasus WorkflowGenerator (legacy bharathi Java LIGO generator).
+The generator may stay installed at:
   C:\Thesis\Paper2\JPDC_Reviews\WorkflowGenerator\bharathi
-(or specify another location using --generator-root).
 
-TEST:
-  python generate_ligo_graphs_only.py --n 100 --count 2
-MORE:
-  python generate_ligo_graphs_only.py --n 100 --count 98 --start 3
-  python generate_ligo_graphs_only.py --n 200 --count 2
-  python generate_ligo_graphs_only.py --scaffold-only
+Commands:
+  python generate_ligo_graphs_only.py                  # full 1000 workflows
+  python generate_ligo_graphs_only.py --test           # 2 workflows at n=100 only
+  python generate_ligo_graphs_only.py --count 2        # 2 per size across all sizes
+  python generate_ligo_graphs_only.py --n 300 --count 100
+  python generate_ligo_graphs_only.py --convert-only   # convert saved DAX files
 
-Only Python's standard library is needed. Java is needed for generating DAX.
+Already-generated graph files are skipped by default so interrupted generation
+can be resumed safely by running the same command again.
 """
 
 from __future__ import annotations
@@ -51,8 +49,7 @@ GENERATOR_FOLDER = Path(r"C:\Thesis\Paper2\JPDC_Reviews\WorkflowGenerator\bharat
 
 # Keep the same graph-size subfolders as your DAGGEN dataset.
 GRAPH_SIZES = list(range(100, 1001, 100))
-DEFAULT_N = 100
-DEFAULT_COUNT = 2        # Only two graphs for the first test.
+DEFAULT_COUNT = 100      # Full dataset: 100 files in EVERY n folder.
 DEFAULT_START = 1        # Files named Ligo_output_1.csv, Ligo_output_2.csv, ...
 
 
@@ -181,68 +178,105 @@ def convert_dax(xml_text: str, expected_jobs: int) -> tuple[str, int]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate LIGO DAGs in DAGGEN GRAPHS folder structure")
+    parser = argparse.ArgumentParser(
+        description="Generate LIGO graphs for n=100..1000, 100 instances each by default"
+    )
     parser.add_argument("--root", type=Path, default=DATASET_FOLDER,
-                        help="Output LIGO folder")
+                        help="Output root LIGO (default: beside this Python script)")
     parser.add_argument("--generator-root", type=Path, default=GENERATOR_FOLDER,
-                        help="Path to WorkflowGenerator/bharathi")
-    parser.add_argument("--n", type=int, default=DEFAULT_N,
-                        help="Tasks per workflow (even and >20 for legacy LIGO generator)")
+                        help="Compiled WorkflowGenerator/bharathi location")
+    parser.add_argument("--n", type=int, default=None,
+                        help="Generate a single n size; omit to generate ALL 100..1000")
     parser.add_argument("--count", type=int, default=DEFAULT_COUNT,
-                        help="Number of workflows to produce (default 2)")
+                        help="Number of graphs PER size (default: 100)")
     parser.add_argument("--start", type=int, default=DEFAULT_START,
-                        help="First file number (default 1)")
-    parser.add_argument("--retries", type=int, default=15)
+                        help="First output file index (default: 1)")
+    parser.add_argument("--test", action="store_true",
+                        help="Quick test: 2 graphs only at n=100")
+    parser.add_argument("--retries", type=int, default=15,
+                        help="Retries per graph if the legacy generator fails")
     parser.add_argument("--overwrite", action="store_true",
-                        help="Regenerate original DAXs and overwrite graphs")
+                        help="Regenerate original DAXs and overwrite CSV graphs")
     parser.add_argument("--convert-only", action="store_true",
-                        help="Use existing ORIGINAL .dax files without Java")
+                        help="Convert existing ORIGINAL DAXs without invoking Java")
     parser.add_argument("--scaffold-only", action="store_true",
-                        help="Only create the complete folder structure")
+                        help="Create the folders only; no DAX or graphs")
     args = parser.parse_args()
 
-    if args.n not in GRAPH_SIZES:
-        parser.error(f"--n must be one of {GRAPH_SIZES} for this folder layout")
-    if args.n <= 20 or args.n % 2:
-        parser.error("Pegasus LIGO requires an even job count greater than 20")
+    if args.n is not None and args.n not in GRAPH_SIZES:
+        parser.error(f"--n must be one of {GRAPH_SIZES}")
     if args.count <= 0 or args.start < 1 or args.retries < 1:
         parser.error("--count, --start and --retries must be positive")
     if args.convert_only and args.overwrite:
-        parser.error("Use either --convert-only or --overwrite, not both")
+        parser.error("Do not combine --convert-only with --overwrite")
 
+    # All size folders are created in every execution, even a small test.
     prepare_folders(args.root)
-    print(f"Created/verified GRAPHS, Tasks (empty), and ORIGINAL subfolders for n=100...1000 under {args.root}")
+    print(f"Dataset location: {args.root}", flush=True)
+    print("Created/verified GRAPHS, Tasks (empty), and ORIGINAL for n=100...1000", flush=True)
     if args.scaffold_only:
-        print("Folder structure created. No graphs generated.")
+        print("Scaffold-only requested: no workflows generated")
         return
 
-    failures = 0
-    for index in range(args.start, args.start + args.count):
-        original = args.root / "ORIGINAL" / f"n={args.n}" / f"Ligo_output_{index}.dax"
-        graph = args.root / "GRAPHS" / f"n={args.n}" / f"Ligo_output_{index}.csv"
-        try:
-            if graph.exists() and not args.overwrite:
-                print(f"[SKIPPED] {graph.name} already exists (use --overwrite to replace)")
-                continue
-            if original.exists() and not args.overwrite:
-                xml_text = original.read_text(encoding="utf-8-sig")
-                print(f"Using existing original: {original.name}")
-            elif args.convert_only:
-                raise FileNotFoundError(f"Missing original: {original}")
-            else:
-                xml_text = generate_dax(args.generator_root, args.n, args.retries)
+    if args.test:
+        sizes = [100]
+        count = 2
+        start = 1
+    else:
+        sizes = [args.n] if args.n is not None else GRAPH_SIZES
+        count = args.count
+        start = args.start
 
-            graph_text, edge_count = convert_dax(xml_text, args.n)
-            if not original.exists() or args.overwrite:
-                original.write_text(xml_text, encoding="utf-8")
-            graph.write_text(graph_text, encoding="utf-8")
-            print(f"[OK] {graph.name}: n={args.n} tasks, {edge_count} dependencies")
-        except Exception as exc:
-            failures += 1
-            print(f"[ERROR] {graph.name}: {exc}", file=sys.stderr)
+    print(f"Graph sizes: {sizes}; {count} instances per size; total requested: {len(sizes)*count}", flush=True)
+    print("Already-completed graph files will be skipped. Tasks folders stay empty.\n", flush=True)
+
+    # Avoid calling Java repeatedly if Pegasus is not installed or compiled.
+    # Only check the Java generator when a DAX will actually need generating.
+    failures = 0
+    created = 0
+    skipped = 0
+    for n in sizes:
+        print(f"\n===== n={n} ({count} requested) =====", flush=True)
+        ok_size, skip_size, fail_size = 0, 0, 0
+        for index in range(start, start + count):
+            original = args.root / "ORIGINAL" / f"n={n}" / f"Ligo_output_{index}.dax"
+            graph = args.root / "GRAPHS" / f"n={n}" / f"Ligo_output_{index}.csv"
+            if graph.exists() and not args.overwrite:
+                skip_size += 1
+                continue
+            try:
+                if original.exists() and not args.overwrite:
+                    xml_text = original.read_text(encoding="utf-8-sig")
+                elif args.convert_only:
+                    raise FileNotFoundError(f"No original workflow found: {original}")
+                else:
+                    xml_text = generate_dax(args.generator_root, n, args.retries)
+
+                graph_text, edge_count = convert_dax(xml_text, n)
+                # Write original before graph; rerun will convert a saved DAX if needed.
+                if not original.exists() or args.overwrite:
+                    original.write_text(xml_text, encoding="utf-8")
+                graph.write_text(graph_text, encoding="utf-8")
+                ok_size += 1
+                # Progress for large batches; avoid excessive 1000-line output.
+                if ok_size <= 2 or ok_size % 10 == 0 or index == start + count - 1:
+                    print(f"  [OK] {graph.name}: {n} jobs, {edge_count} edges", flush=True)
+            except Exception as exc:
+                fail_size += 1
+                print(f"  [ERROR] n={n}, graph {index}: {exc}", file=sys.stderr, flush=True)
+                # Missing generator is a nonrecoverable setup problem.
+                if isinstance(exc, (FileNotFoundError, OSError)) and not args.convert_only:
+                    raise SystemExit("Stopped: fix the Pegasus generator path/build, then rerun.")
+        created += ok_size
+        skipped += skip_size
+        failures += fail_size
+        print(f"n={n} finished: created={ok_size}, skipped={skip_size}, errors={fail_size}", flush=True)
+
+    print(f"\nFINISHED: created={created}, skipped={skipped}, errors={failures}")
+    print(f"Graph files: {args.root / 'GRAPHS'}")
+    print("No task-parameter files were generated.")
     if failures:
-        sys.exit(f"Finished with {failures} failure(s). See messages above.")
-    print("Completed. No task parameter files were generated.")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
