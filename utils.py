@@ -122,8 +122,8 @@ def compute_and_save( result_directory,model_name,mu,alpha,beta,gamma,version,wr
         P = int(row['P'])
         n = int(row['n'])
         i = int(row['Index'])
-        daggen_file = "LIGO/"+"GRAPHS/" + 'n'+ "=" +str(n) + "/" + "daggen_output_"+ str(i) + ".csv"
-        node_file = "LIGO/"+"TASKS/n=" + str(n) + "/" + str(i) + ".csv"
+        daggen_file = "MONTAGE/"+"GRAPHS/" + 'n'+ "=" +str(n) + "/" + "Montage_output_"+ str(i) + ".csv"
+        node_file = "MONTAGE/"+"TASKS/n=" + str(n) + "/" + str(i) + ".csv"
         nodes = load_nodes_from_csv(node_file) #w,p,c,d list
         edges = extract_dependencies_from_csv(daggen_file)
         task_graph = Graph(nodes, edges) #generate task graphs       
