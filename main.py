@@ -65,7 +65,7 @@ else:
 # Input paths. The selected model/algorithm/priority determine output folders.
 # -------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
-WORKLOAD_DIR = SCRIPT_DIR / "MONTAGE"
+WORKLOAD_DIR = SCRIPT_DIR / "CYBER"
 SEED_CSV = SCRIPT_DIR / "previous_BO_samples.csv"
 COMBINATIONS_CSV = SCRIPT_DIR / "combinations.csv"
 
@@ -376,14 +376,14 @@ def load_workload_configuration():
     for _, row in combinations.iterrows():
         n = int(row["n"])
         index = int(row["Index"])
-        graph = WORKLOAD_DIR / "GRAPHS" / f"n={n}" / f"Montage_output_{index}.csv"
+        graph = WORKLOAD_DIR / "GRAPHS" / f"n={n}" / f"Cyber_output_{index}.csv"
         task = WORKLOAD_DIR / "Tasks" / f"n={n}" / f"{index}.csv"
         if not graph.is_file():
-            raise FileNotFoundError(f"MONTAGE graph missing: {graph}")
+            raise FileNotFoundError(f"Cyber graph missing: {graph}")
         if not task.is_file():
             raise FileNotFoundError(
-                f"MONTAGE task parameters missing: {task}\n"
-                "Supply the corresponding MONTAGE/Tasks file before running BO."
+                f"Cyber task parameters missing: {task}\n"
+                "Supply the corresponding Cyber/Tasks file before running BO."
             )
     return combinations
 
@@ -400,9 +400,9 @@ MODEL_CLASSES = {
 # -------------------------------
 # Evaluation
 # -------------------------------
-def compute_and_save_montage(result_directory, priority_num, mu, alpha,
+def compute_and_save_cyber(result_directory, priority_num, mu, alpha,
                           beta, gamma, version, writer):
-    """Existing scheduler objective, but with MONTAGE instead of DAGGEN paths.
+    """Existing scheduler objective, but with Cyber instead of DAGGEN paths.
 
     Uses the same objective (worst makespan ratio), algorithm calls,
     task loader and graph parser as the user's original utils.py.
@@ -417,7 +417,7 @@ def compute_and_save_montage(result_directory, priority_num, mu, alpha,
         P = int(row["P"])
         n = int(row["n"])
         i = int(row["Index"])
-        dag_file = WORKLOAD_DIR / "GRAPHS" / f"n={n}" / f"Montage_output_{i}.csv"
+        dag_file = WORKLOAD_DIR / "GRAPHS" / f"n={n}" / f"Cyber_output_{i}.csv"
         node_file = WORKLOAD_DIR / "Tasks" / f"n={n}" / f"{i}.csv"
 
         nodes = load_nodes_from_csv(str(node_file))
@@ -472,7 +472,7 @@ def evaluate_one_combination_return_value(p1: float,
         writer = csv.writer(f)
         writer.writerow(["P", "n", "Algorithm Time", "Optimal Time", "Makespan Ratio"])
         with ThreadPoolExecutor() as executor:
-            future = executor.submit(compute_and_save_montage,
+            future = executor.submit(compute_and_save_cyber,
                                      result_directory, priority_num, mu,
                                      alpha, beta, gamma, version, writer)
             combo_max_value = future.result()
